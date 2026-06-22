@@ -11,6 +11,9 @@ depend on `org.bstats:bstats-neoforge:<version>` after those modules are release
 The Fabric and NeoForge modules are configured to produce javadoc and sources jars. They depend on
 the shared `bstats-base` module and keep loader APIs as compile-only dependencies.
 
+For local/private NeoForge runtime readiness checks, see
+[`docs/neoforge-runtime-smoke-test.md`](docs/neoforge-runtime-smoke-test.md).
+
 ## Code Generation
 
 The recommended way to include the Metrics classes is to use a build management tool like Gradle or Maven and
