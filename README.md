@@ -2,6 +2,12 @@
 
 This repository contains the code for all Java-based Metrics classes.
 
+## Modules
+
+The NeoForge module is configured to publish as `org.bstats:bstats-neoforge`.
+NeoForge mods can depend on that artifact when using Gradle or Maven-based
+dependency management.
+
 ## Code Generation
 
 The recommended way to include the Metrics classes is to use a build management tool like Gradle or Maven and
@@ -12,6 +18,10 @@ release and pushed to the `single-file` branch. This file can simply be copy-and
 
 To generate a Metrics class locally, you can run the `gradlew generateMetrics` command.
 It will write the generated files into the `<platform>/build/generated/` directory.
+
+For local or private NeoForge runtime validation, use the
+[`NeoForge Runtime Smoke Test Plan`](docs/neoforge-runtime-smoke-test.md). Do
+not point smoke-test telemetry at upstream `https://bStats.org`.
 
 ## Publishing
 
