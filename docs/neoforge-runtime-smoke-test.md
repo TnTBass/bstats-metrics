@@ -67,6 +67,31 @@ The private receiver must be able to log enough request data to prove a POST rea
 metrics path. If the receiver only supports another platform path, add a local-only NeoForge handler
 before running the smoke test.
 
+## Pre-Runtime Readiness Checklist
+
+Complete this checklist before starting any disposable NeoForge server. These steps prepare local or
+private inputs only; they do not require a server run, deployment, publication, or upstream bStats
+traffic.
+
+- Confirm the private receiver target is local or private and is not `https://bStats.org`.
+- Confirm the receiver accepts `POST` requests for the exact NeoForge path produced by the
+  disposable URL pattern, for example `/submitData/neoforge`.
+- Confirm the receiver decompresses gzip request bodies before logging payload JSON.
+- Confirm the disposable test mod package name is not `org.bstats.neoforge`.
+- Confirm the disposable generated copy keeps the platform placeholder in the report URL pattern,
+  for example `http://private-receiver:18080/submitData/%s`.
+- If using an HTTP-only receiver, confirm only the disposable generated copy changes
+  `HttpsURLConnection` to `HttpURLConnection`.
+- Confirm the disposable test mod uses a dummy service id, such as `99999`.
+- Confirm the disposable runtime directory is isolated and has no shared
+  `config/bStats/config.txt` from another server.
+- Confirm `generateMetrics` passed with JDK 17 and produced
+  `neoforge/build/generated/Metrics.java`.
+- Confirm `:neoforge:compileJava` passed with JDK 25.
+
+Do not proceed to runtime testing when any readiness item is missing. Fix the disposable test mod or
+private receiver first, then rerun the readiness checklist.
+
 ## Runtime Steps
 
 1. Start the private receiver and verify its health endpoint or equivalent local readiness check.
@@ -100,3 +125,48 @@ before running the smoke test.
 - Whether server lifecycle event registration captures player count and online mode during a real
   NeoForge run.
 - Whether a shaded or copied Metrics class in a downstream mod behaves correctly after relocation.
+
+## Evidence Template
+
+Copy this template into a local-only note for the approved runtime run. Do not commit private server
+names, payload bodies, UUIDs, or operator-specific paths unless they are intentionally scrubbed.
+
+```text
+NeoForge bStats Runtime Smoke Evidence
+
+Source worktree:
+Commit:
+Disposable test mod package:
+Disposable service id:
+Private receiver base URL: <scrub before committing>
+Resolved metrics path: <scrub before committing if it includes private host details>
+Disposable runtime directory: <scrub before committing>
+
+Pre-runtime checks:
+- JDK 17 generateMetrics:
+- Generated source exists:
+- JDK 25 :neoforge:compileJava:
+- Receiver health/readiness:
+- Receiver accepts NeoForge metrics path:
+- Receiver decompresses gzip body:
+- Disposable copy package changed away from org.bstats.neoforge:
+- Disposable copy report URL points only at local/private receiver:
+- Disposable copy transport patch, if any:
+
+Runtime evidence:
+- NeoForge server startup completed:
+- Disposable test mod initialized:
+- No bStats relocation error:
+- No config creation failure:
+- No lifecycle listener failure:
+- config/bStats/config.txt created under disposable runtime:
+- enabled=true only while private receiver was active:
+- Receiver POST path:
+- Receiver response status:
+- Payload platform field:
+- Payload service.id field:
+- Server stopped cleanly:
+- No bStats shutdown warning:
+
+Notes and follow-up:
+```
