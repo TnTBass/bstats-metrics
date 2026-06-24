@@ -24,6 +24,9 @@ For local or private NeoForge runtime validation, use the
 [`NeoForge Runtime Smoke Test Plan`](docs/neoforge-runtime-smoke-test.md). Do
 not point smoke-test telemetry at upstream `https://bStats.org`.
 
+Before considering any upstream submission, track the remaining NeoForge work in
+the [`NeoForge Upstream Readiness Checklist`](docs/neoforge-upstream-readiness.md).
+
 ## Publishing
 
 Snapshots are automatically published on every push.
