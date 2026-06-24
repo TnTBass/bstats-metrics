@@ -6,7 +6,8 @@ This repository contains the code for all Java-based Metrics classes.
 
 The NeoForge module is configured to publish as `org.bstats:bstats-neoforge`.
 NeoForge mods can depend on that artifact when using Gradle or Maven-based
-dependency management.
+dependency management, then shade and relocate it into the consuming mod's
+package.
 
 ## Code Generation
 

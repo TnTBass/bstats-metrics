@@ -22,8 +22,10 @@ upstream bStats ingestion.
   The committed default template is `https://bStats.org/api/v2/data/%s`, which resolves to
   `/api/v2/data/neoforge`. If the disposable copy is patched to a private template such as
   `/submitData/%s`, configure the receiver for the resulting `/submitData/neoforge` path.
-- JDK for generation: `C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot`
-- JDK for NeoForge compile/runtime work: `C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot`
+- JDK for generation: JDK 17
+- JDK for NeoForge compile/runtime work: JDK 25
+
+Use local installation paths for those JDK versions when setting `JAVA_HOME`.
 
 ## Safety Rules
 
@@ -41,10 +43,10 @@ upstream bStats ingestion.
 From the active source worktree, generate and compile the NeoForge metrics artifact:
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-17.0.19.10-hotspot'
+$env:JAVA_HOME = '<path-to-jdk17>'
 .\gradlew.bat generateMetrics
 
-$env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot'
+$env:JAVA_HOME = '<path-to-jdk25>'
 .\gradlew.bat :neoforge:compileJava
 ```
 
