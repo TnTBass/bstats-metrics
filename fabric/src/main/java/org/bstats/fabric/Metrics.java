@@ -11,12 +11,10 @@ import org.bstats.json.JsonObjectBuilder;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,26 +31,22 @@ import java.util.logging.Logger;
 public class Metrics {
 
     private static final Logger LOGGER = Logger.getLogger("bStats");
-    private static final String SERVER_LIFECYCLE_EVENTS =
-            "net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents";
-    private static final String SERVER_STARTED =
-            "net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents$ServerStarted";
-    private static final String SERVER_STOPPED =
-            "net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents$ServerStopped";
     private static final String MINECRAFT_SERVER = "net.minecraft.server.MinecraftServer";
+    private static final ServerMethod PLAYER_COUNT =
+            new ServerMethod("getCurrentPlayerCount", "method_3788", "()I");
+    private static final ServerMethod ONLINE_MODE =
+            new ServerMethod("isOnlineMode", "method_3828", "()Z");
 
     private final FabricLoader loader;
     private final String modId;
 
     private final MetricsBase metricsBase;
-    private volatile Object minecraftServer;
 
     /**
      * Creates a new Metrics class for a Fabric server mod.
      *
-     * <p>Fabric API's server lifecycle events are used to capture the Minecraft server instance
-     * so this class can collect player count and online mode without pushing that work to mod
-     * authors.
+     * <p>Fabric Loader's game instance is used to collect player count and online mode without
+     * pushing that work to mod authors.
      *
      * @param modId The Fabric id of the mod.
      * @param serviceId The id of the bStats service.
@@ -64,11 +58,6 @@ public class Metrics {
         this.modId = Objects.requireNonNull(modId, "modId");
 
         if (loader.getEnvironmentType() != EnvType.SERVER) {
-            metricsBase = null;
-            return;
-        }
-
-        if (!registerServerLifecycleEvents()) {
             metricsBase = null;
             return;
         }
@@ -134,7 +123,7 @@ public class Metrics {
         builder.appendField("playerAmount", getPlayerAmount());
         builder.appendField("onlineMode", isOnlineMode() ? 1 : 0);
         builder.appendField("minecraftVersion", getModVersion("minecraft"));
-        builder.appendField("fabricVersion", getModVersion("fabricloader"));
+        appendFabricVersions(builder, this::getOptionalModVersion);
 
         builder.appendField("javaVersion", System.getProperty("java.version"));
         builder.appendField("osName", System.getProperty("os.name"));
@@ -148,61 +137,21 @@ public class Metrics {
     }
 
     private String getModVersion(String id) {
+        return getOptionalModVersion(id).orElse("unknown");
+    }
+
+    private Optional<String> getOptionalModVersion(String id) {
         Optional<ModContainer> modContainer = loader.getModContainer(id);
-        if (!modContainer.isPresent()) {
-            return "unknown";
-        }
-        return modContainer.get().getMetadata().getVersion().getFriendlyString();
+        return modContainer.map(container -> container.getMetadata().getVersion().getFriendlyString());
     }
 
-    private boolean registerServerLifecycleEvents() {
-        try {
-            Class<?> eventsClass = Class.forName(SERVER_LIFECYCLE_EVENTS);
-            registerServerLifecycleListener(eventsClass, "SERVER_STARTED", SERVER_STARTED, server -> minecraftServer = server);
-            registerServerLifecycleListener(eventsClass, "SERVER_STOPPED", SERVER_STOPPED, server -> minecraftServer = null);
-            return true;
-        } catch (ReflectiveOperationException e) {
-            LOGGER.log(Level.WARNING, "Failed to register Fabric server lifecycle events for bStats", e);
-            return false;
-        }
-    }
-
-    private void registerServerLifecycleListener(
-            Class<?> eventsClass,
-            String eventField,
-            String listenerClassName,
-            Consumer<Object> serverConsumer) throws ReflectiveOperationException {
-        Object event = eventsClass.getField(eventField).get(null);
-        Class<?> listenerClass = Class.forName(listenerClassName);
-        InvocationHandler handler = (proxy, method, args) -> {
-            if (method.getDeclaringClass() == Object.class) {
-                if ("hashCode".equals(method.getName())) {
-                    return System.identityHashCode(proxy);
-                }
-                if ("equals".equals(method.getName())) {
-                    return proxy == args[0];
-                }
-                if ("toString".equals(method.getName())) {
-                    return "bStats Fabric lifecycle listener";
-                }
-            }
-            if (args != null && args.length == 1) {
-                serverConsumer.accept(args[0]);
-            }
-            return null;
-        };
-        Object listener = Proxy.newProxyInstance(
-                listenerClass.getClassLoader(),
-                new Class<?>[] { listenerClass },
-                handler
-        );
-        Method register = event.getClass().getMethod("register", Object.class);
-        register.setAccessible(true);
-        register.invoke(event, listener);
+    static void appendFabricVersions(JsonObjectBuilder builder, Function<String, Optional<String>> modVersionProvider) {
+        builder.appendField("fabricLoaderVersion", modVersionProvider.apply("fabricloader").orElse("unknown"));
+        modVersionProvider.apply("fabric-api").ifPresent(version -> builder.appendField("fabricApiVersion", version));
     }
 
     private int getPlayerAmount() {
-        Object playerAmount = invokeMinecraftServerMethod("getCurrentPlayerCount", "method_3788", "()I");
+        Object playerAmount = PLAYER_COUNT.invoke(getGameInstance(), loader);
         if (playerAmount instanceof Number) {
             return ((Number) playerAmount).intValue();
         }
@@ -210,47 +159,86 @@ public class Metrics {
     }
 
     private boolean isOnlineMode() {
-        Object onlineMode = invokeMinecraftServerMethod("isOnlineMode", "method_3828", "()Z");
+        Object onlineMode = ONLINE_MODE.invoke(getGameInstance(), loader);
         return onlineMode instanceof Boolean && (Boolean) onlineMode;
     }
 
-    private Object invokeMinecraftServerMethod(String namedMethod, String intermediaryMethod, String descriptor) {
-        Object server = minecraftServer;
-        if (server == null) {
-            return null;
-        }
-
-        String mappedMethod = mapMinecraftServerMethod(namedMethod, descriptor);
-        Object result = invokeNoArgs(server, mappedMethod);
-        if (result != null || mappedMethod.equals(intermediaryMethod)) {
-            return result;
-        }
-
-        result = invokeNoArgs(server, intermediaryMethod);
-        if (result != null || mappedMethod.equals(namedMethod)) {
-            return result;
-        }
-
-        return invokeNoArgs(server, namedMethod);
+    @SuppressWarnings("deprecation")
+    private Object getGameInstance() {
+        return loader.getGameInstance();
     }
 
-    private String mapMinecraftServerMethod(String namedMethod, String descriptor) {
-        try {
-            MappingResolver mappingResolver = loader.getMappingResolver();
-            return mappingResolver.mapMethodName("named", MINECRAFT_SERVER, namedMethod, descriptor);
-        } catch (RuntimeException e) {
-            return namedMethod;
-        }
-    }
+    static final class ServerMethod {
 
-    private Object invokeNoArgs(Object target, String methodName) {
-        try {
-            Method method = target.getClass().getMethod(methodName);
-            return method.invoke(target);
-        } catch (ReflectiveOperationException e) {
-            LOGGER.log(Level.FINE, "Failed to call Minecraft server method " + methodName + " for bStats", e);
-            return null;
+        private final String namedMethod;
+        private final String intermediaryMethod;
+        private final String descriptor;
+        private volatile Method method;
+
+        ServerMethod(String namedMethod, String intermediaryMethod, String descriptor) {
+            this.namedMethod = namedMethod;
+            this.intermediaryMethod = intermediaryMethod;
+            this.descriptor = descriptor;
         }
+
+        Object invoke(Object server, FabricLoader loader) {
+            if (server == null) {
+                return null;
+            }
+            try {
+                return resolve(server, loader).invoke(server);
+            } catch (ReflectiveOperationException e) {
+                LOGGER.log(Level.FINE, "Failed to call Minecraft server method " + namedMethod + " for bStats", e);
+                return null;
+            } catch (IllegalArgumentException e) {
+                LOGGER.log(Level.FINE, "Failed to call cached Minecraft server method " + namedMethod + " for bStats", e);
+                method = null;
+                return null;
+            }
+        }
+
+        private Method resolve(Object server, FabricLoader loader) throws NoSuchMethodException {
+            Method cachedMethod = method;
+            if (cachedMethod != null && cachedMethod.getDeclaringClass().isInstance(server)) {
+                return cachedMethod;
+            }
+
+            Method resolvedMethod = findNoArgs(server, mappedMethod(loader));
+            if (resolvedMethod == null) {
+                resolvedMethod = findNoArgs(server, intermediaryMethod);
+            }
+            if (resolvedMethod == null) {
+                resolvedMethod = findNoArgs(server, namedMethod);
+            }
+            if (resolvedMethod == null) {
+                throw new NoSuchMethodException(namedMethod);
+            }
+
+            method = resolvedMethod;
+            return resolvedMethod;
+        }
+
+        private String mappedMethod(FabricLoader loader) {
+            if (loader == null) {
+                return namedMethod;
+            }
+            try {
+                MappingResolver mappingResolver = loader.getMappingResolver();
+                return mappingResolver.mapMethodName("named", MINECRAFT_SERVER, namedMethod, descriptor);
+            } catch (RuntimeException e) {
+                return namedMethod;
+            }
+        }
+
+        private Method findNoArgs(Object server, String methodName) {
+            try {
+                return server.getClass().getMethod(methodName);
+            } catch (ReflectiveOperationException e) {
+                LOGGER.log(Level.FINE, "Failed to resolve Minecraft server method " + methodName + " for bStats", e);
+                return null;
+            }
+        }
+
     }
 
 }

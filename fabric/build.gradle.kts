@@ -12,10 +12,12 @@ repositories {
 
 dependencies {
     compileOnly("net.fabricmc:fabric-loader:0.19.3")
-    compileOnly("net.fabricmc.fabric-api:fabric-lifecycle-events-v1:4.1.3+4575b05f9e")
     api(project(":base")) {
         isTransitive = true
     }
+    testCompileOnly("net.fabricmc:fabric-loader:0.19.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<Test> {
