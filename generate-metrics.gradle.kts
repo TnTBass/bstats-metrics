@@ -20,6 +20,7 @@ tasks.register("generateMetrics") {
     doLast {
         generatePlatformMetricsClass("bukkit", false)
         generatePlatformMetricsClass("bungeecord", false)
+        generatePlatformMetricsClass("fabric", true)
         generatePlatformMetricsClass("sponge", false)
         generatePlatformMetricsClass("velocity", true)
         generatePlatformMetricsClass("hytale", true)
