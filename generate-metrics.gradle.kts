@@ -21,7 +21,6 @@ tasks.register("generateMetrics") {
         generatePlatformMetricsClass("bukkit", false)
         generatePlatformMetricsClass("bungeecord", false)
         generatePlatformMetricsClass("fabric", true)
-        generatePlatformMetricsClass("neoforge", true)
         generatePlatformMetricsClass("sponge", false)
         generatePlatformMetricsClass("velocity", true)
         generatePlatformMetricsClass("hytale", true)

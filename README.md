@@ -2,18 +2,6 @@
 
 This repository contains the code for all Java-based Metrics classes.
 
-## Modules
-
-When published, artifacts use the `org.bstats` group and the `bstats-<platform>` artifact name.
-For example, Fabric mods can depend on `org.bstats:bstats-fabric:<version>` and NeoForge mods can
-depend on `org.bstats:bstats-neoforge:<version>` after those modules are released.
-
-The Fabric and NeoForge modules are configured to produce javadoc and sources jars. They depend on
-the shared `bstats-base` module and keep loader APIs as compile-only dependencies.
-
-For local/private NeoForge runtime readiness checks, see
-[`docs/neoforge-runtime-smoke-test.md`](docs/neoforge-runtime-smoke-test.md).
-
 ## Code Generation
 
 The recommended way to include the Metrics classes is to use a build management tool like Gradle or Maven and

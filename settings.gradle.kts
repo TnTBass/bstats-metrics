@@ -3,7 +3,7 @@ plugins {
 }
 
 rootProject.name = "bstats-metrics"
-include("base", "bukkit", "bungeecord", "fabric", "neoforge", "sponge", "velocity", "hytale")
+include("base", "bukkit", "bungeecord", "fabric", "sponge", "velocity", "hytale")
 
 nmcpSettings {
     centralPortal {
